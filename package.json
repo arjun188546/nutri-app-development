@@ -1,0 +1,47 @@
+{
+  "name": "froentend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-community/datetimepicker": "8.4.1",
+    "@react-native-picker/picker": "2.11.1",
+    "@react-navigation/bottom-tabs": "^6.6.1",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/stack": "^6.4.1",
+    "@reduxjs/toolkit": "^2.2.7",
+    "axios": "^1.7.7",
+    "expo": "^54.0.0",
+    "expo-asset": "^12.0.8",
+    "expo-dev-client": "~5.2.4",
+    "expo-image-picker": "^17.0.10",
+    "expo-linear-gradient": "~14.1.5",
+    "expo-secure-store": "~14.2.4",
+    "expo-status-bar": "~2.2.3",
+    "expo-updates": "~0.28.17",
+    "react": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-circular-progress": "^1.4.1",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-razorpay": "^2.3.0",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-svg": "15.11.2",
+    "react-native-toast-message": "^2.2.1",
+    "react-native-vector-icons": "^10.3.0",
+    "react-native-webview": "13.13.5",
+    "react-redux": "^9.1.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@react-native-community/cli": "^20.0.1",
+    "babel-preset-expo": "~12.0.0"
+  },
+  "private": true,
+  "packageManager": "yarn@4.7.0+sha512.5a0afa1d4c1d844b3447ee3319633797bcd6385d9a44be07993ae52ff4facabccafb4af5dcd1c2f9a94ac113e5e9ff56f6130431905884414229e284e37bb7c9"
+}
