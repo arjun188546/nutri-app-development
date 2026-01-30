@@ -1,21 +1,25 @@
 import Toast from "react-native-toast-message";
+import * as SecureStore from "expo-secure-store";
 
 // Update this to your local IP for physical device testing
-const BASE_URL = 'http://192.168.29.140:3000';
+const BASE_URL = 'http://192.168.0.101:8000';
 const ANALYZE_URL = `${BASE_URL}/api/analyze-food`;
 const MEALS_URL = `${BASE_URL}/api/meals`;
 
-export const analyzeFoodImage = async (imageBase64, mealName, imageUri) => {
+export const analyzeFoodImage = async (imageBase64, mealName, imageUri, userId) => {
     try {
+        const token = await SecureStore.getItemAsync("accessToken");
         const response = await fetch(ANALYZE_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 imageBase64,
                 mealName,
-                imageUri
+                imageUri,
+                userId
             }),
         });
 
@@ -40,7 +44,12 @@ export const analyzeFoodImage = async (imageBase64, mealName, imageUri) => {
 
 export const fetchMealHistory = async () => {
     try {
-        const response = await fetch(MEALS_URL);
+        const token = await SecureStore.getItemAsync("accessToken");
+        const response = await fetch(MEALS_URL, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
         if (!response.ok) throw new Error('Failed to fetch history');
         return await response.json();
     } catch (error) {

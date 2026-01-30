@@ -23,8 +23,17 @@ const App = () => {
   const [initialRoute, setInitialRoute] = useState("Login");
 
   useEffect(() => {
-    setInitialRoute("Home");
-    setLoading(false);
+    const checkSecureStorage = async () => {
+      const accessToken = await SecureStore.getItemAsync("accessToken");
+      if (accessToken) {
+        setInitialRoute("Home");
+      } else {
+        setInitialRoute("Login");
+      }
+      setLoading(false);
+    };
+
+    checkSecureStorage();
   }, []);
 
   if (loading) {

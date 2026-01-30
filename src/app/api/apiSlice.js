@@ -5,15 +5,16 @@ import { setCredentials, logOut } from "../../redux/auth/authSlice";
 
 // Base query with token injection
 const baseQuery = fetchBaseQuery({
-  baseUrl: "http://192.168.29.140:3000",
+  baseUrl: "https://geneus-solutions-backend.onrender.com",
   prepareHeaders: async (headers) => {
     try {
       const token = await SecureStore.getItemAsync("accessToken");
+      console.log("apiSlice: Found accessToken in SecureStore:", token ? "Yes (truncated)" : "No");
       if (token) {
         headers.set("authorization", `Bearer ${token}`);
       }
     } catch (err) {
-      console.log("Error reading accessToken:", err);
+      console.log("Error reading accessToken in apiSlice:", err);
     }
     return headers;
   },
@@ -32,11 +33,11 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
       // hit refresh endpoint
       const refreshResult = await fetchBaseQuery({
-        baseUrl: "http://192.168.29.140:3000",
+        baseUrl: "https://geneus-solutions-backend.onrender.com",
       })(
         {
-          // url: "/refresh_token_android",
-          url: "/refresh_token",
+          url: "/refresh_token_android",
+          // url: "/refresh_token",
           method: "GET",
           // body: { refreshToken },
           headers: {

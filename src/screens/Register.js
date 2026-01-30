@@ -13,6 +13,7 @@ import { useDispatch } from "react-redux";
 import { setUser } from "../redux/UserSlice";
 import * as SecureStore from "expo-secure-store";
 import Toast from "react-native-toast-message";
+import { useSignupMutation } from "../redux/auth/authApiSlice";
 
 const Register = ({ navigation }) => {
     const [username, setUsername] = useState("");
@@ -20,7 +21,8 @@ const Register = ({ navigation }) => {
     const [password, setPassword] = useState("");
     const [number, setNumber] = useState("");
     const dispatch = useDispatch();
-    console.log('this is navigation', navigation)
+
+    const [signup, { isLoading }] = useSignupMutation();
 
     const handleRegister = async () => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,8 +31,6 @@ const Register = ({ navigation }) => {
                 type: "error",
                 text1: "Error",
                 text2: "All fields are required!",
-                visibilityTime: 3000,
-                autoHide: true,
             });
             return;
         }
@@ -40,8 +40,6 @@ const Register = ({ navigation }) => {
                 type: "error",
                 text1: "Error",
                 text2: "Please enter a valid email address.",
-                visibilityTime: 3000,
-                autoHide: true,
             });
             return;
         }
@@ -51,84 +49,38 @@ const Register = ({ navigation }) => {
                 type: "error",
                 text1: "Error",
                 text2: "Password must be at least 8 characters long.",
-                visibilityTime: 3000,
-                autoHide: true,
-            });
-            return;
-        }
-
-        if (number.length !== 10) {
-            Toast.show({
-                type: "error",
-                text1: "Error",
-                text2: "Phone number must be exactly 10 digits.",
-                visibilityTime: 3000,
-                autoHide: true,
             });
             return;
         }
 
         try {
-            console.log("Registering user...");
-            const response = await customAxios.post("/androidSignup", {
+            console.log("Registering user with payload:", { name: username, email, password, mobile: number });
+            const response = await signup({
                 name: username,
                 email,
                 password,
                 mobile: number,
+            }).unwrap();
+
+            console.log("Signup success response:", response);
+            dispatch(setUser(response));
+            await SecureStore.setItemAsync("accessToken", response.accessToken);
+            await SecureStore.setItemAsync("refreshToken", response.refreshToken);
+
+            Toast.show({
+                type: "success",
+                text1: "Success",
+                text2: "Registered successfully",
             });
 
-            if (response.status === 200) {
-                dispatch(setUser(response.data));
-                Toast.show({
-                    type: "success",
-                    text1: "Success",
-                    text2: "Registered successfully",
-                    visibilityTime: 3000,
-                    autoHide: true,
-                });
-
-                await SecureStore.setItemAsync(
-                    "accessToken",
-                    response.data.accessToken
-                );
-                await SecureStore.setItemAsync(
-                    "refreshToken",
-                    response.data.refreshToken
-                );
-                const verifyOtp = await api.post("/verify-account/send-otp", {
-                    email,
-                });
-                if (verifyOtp.status === 200) {
-                    Toast.show({
-                        type: "success",
-                        text1: "Success",
-                        text2: verifyOtp.data.message,
-                        visibilityTime: 3000,
-                        autoHide: true,
-                    });
-                } else {
-                    Toast.show({
-                        type: "error",
-                        text1: "Error",
-                        text2: verifyOtp.data.message,
-                        visibilityTime: 3000,
-                        autoHide: true,
-                    });
-                }
-                // navigation.navigate("UserData");
-                navigation.navigate("VerifyEmail", { email }); // pass email to verify screen
-            } else {
-                console.log(response.data);
-            }
+            navigation.navigate("VerifyEmail", { email });
         } catch (error) {
+            console.error("Signup failed error:", JSON.stringify(error, null, 2));
             Toast.show({
                 type: "error",
                 text1: "Error",
-                text2: "Failed to Register. Please try again.",
-                visibilityTime: 3000,
-                autoHide: true,
+                text2: error?.data?.message || "Failed to Register. Please try again.",
             });
-            console.log(error);
         }
     };
 

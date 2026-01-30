@@ -26,6 +26,14 @@ let db;
 
         // Create Tables
         await db.exec(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT UNIQUE,
+                password TEXT,
+                mobile TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
             CREATE TABLE IF NOT EXISTS foods (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 food_name TEXT UNIQUE,
@@ -41,6 +49,7 @@ let db;
             );
             CREATE TABLE IF NOT EXISTS meals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT,
                 image_hash TEXT UNIQUE,
                 items TEXT, -- JSON array of food IDs
                 total_calories TEXT,
@@ -49,14 +58,76 @@ let db;
             );
             CREATE INDEX IF NOT EXISTS idx_food_name ON foods(food_name);
         `);
-        console.log('Local SQLite Database initialized');
+        console.log('Local SQLite Database initialized with Users table');
     } catch (err) {
         console.error('Database Initialization Error:', err);
     }
 })();
 
-// Initialize Gemini
+// --- Auth Endpoints (for Local Dev) ---
+
+app.post('/signup', async (req, res) => {
+    try {
+        const { name, email, password, mobile } = req.body;
+        console.log('Local Signup attempt:', { email });
+
+        const result = await db.run(
+            'INSERT INTO users (name, email, password, mobile) VALUES (?, ?, ?, ?)',
+            [name, email, password, mobile]
+        );
+
+        res.json({
+            success: true,
+            accessToken: "local-access-token-" + result.lastID,
+            refreshToken: "local-refresh-token-" + result.lastID,
+            user: { id: result.lastID, name, email }
+        });
+    } catch (error) {
+        console.error('Local Signup Error:', error);
+        res.status(400).json({ error: 'User already exists or invalid data' });
+    }
+});
+
+app.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        console.log('Local Login attempt:', { email });
+
+        const user = await db.get('SELECT * FROM users WHERE email = ? AND password = ?', [email, password]);
+
+        if (user) {
+            res.json({
+                accessToken: "local-access-token-" + user.id,
+                refreshToken: "local-refresh-token-" + user.id,
+                user: { id: user.id, name: user.name, email: user.email }
+            });
+        } else {
+            res.status(400).json({ error: 'Invalid Email or Password' });
+        }
+    } catch (error) {
+        console.error('Local Login Error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+app.get('/refresh_token_android', (req, res) => {
+    const refreshToken = req.headers['x-refresh-token'];
+    console.log('Local Refresh Token attempt:', refreshToken);
+    res.json({
+        accessToken: "local-new-access-token-" + Date.now(),
+        refreshToken: refreshToken
+    });
+});
+
+// --- Food Endpoints ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Helper to parse numeric values from strings like "500 kcal" or "10g"
+const parseNutritionalValue = (value) => {
+    if (!value) return 0;
+    const match = value.match(/(\d+(\.\d+)?)/);
+    return match ? parseFloat(match[1]) : 0;
+};
 
 // Helper to transform SQLite flat row to nested JSON
 const transformFood = (row) => {
@@ -79,7 +150,7 @@ const transformFood = (row) => {
 
 app.post('/api/analyze-food', async (req, res) => {
     try {
-        const { imageBase64, mealName, imageUri } = req.body;
+        const { imageBase64, mealName, imageUri, userId } = req.body;
 
         if (!imageBase64) {
             return res.status(400).json({ error: 'No image data provided' });
@@ -180,8 +251,8 @@ If this is not food, return {"isFood": false}.`;
         // 5. Save Meal Cache
         const totalCaloriesStr = `${totalCals} kcal`;
         await db.run(
-            'INSERT INTO meals (image_hash, items, total_calories, summary) VALUES (?, ?, ?, ?)',
-            [imageHash, JSON.stringify(detectedItems.map(i => i.id)), totalCaloriesStr, visionData.summary]
+            'INSERT INTO meals (user_id, image_hash, items, total_calories, summary) VALUES (?, ?, ?, ?, ?)',
+            [userId, imageHash, JSON.stringify(detectedItems.map(i => i.id)), totalCaloriesStr, visionData.summary]
         );
 
         res.json({
@@ -233,16 +304,56 @@ app.get('/api/detail/getYourCaloriesRequirement', (req, res) => {
     });
 });
 
-app.get('/api/getFoodById/:userId', (req, res) => {
-    // Return empty logs for now to make it fast
-    res.json({
-        success: true,
-        totalCalories: 0,
-        totalProtein: 0,
-        totalFat: 0,
-        totalCarbs: 0,
-        meals: []
-    });
+app.get('/api/getFoodById/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { date } = req.query; // Expecting YYYY-MM-DD
+
+        const targetDate = date || new Date().toISOString().split('T')[0];
+
+        // Fetch meals for the user on this date
+        const meals = await db.all(
+            `SELECT * FROM meals WHERE user_id = ? AND date(created_at) = date(?)`,
+            [userId, targetDate]
+        );
+
+        let totalCalories = 0;
+        let totalProtein = 0;
+        let totalFat = 0;
+        let totalCarbs = 0;
+
+        const detailedMeals = await Promise.all(meals.map(async (meal) => {
+            const itemIds = JSON.parse(meal.items);
+            const items = await db.all(`SELECT * FROM foods WHERE id IN (${itemIds.join(',')})`);
+
+            items.forEach(item => {
+                totalCalories += parseNutritionalValue(item.calories);
+                totalProtein += parseNutritionalValue(item.protein);
+                totalFat += parseNutritionalValue(item.fat);
+                totalCarbs += parseNutritionalValue(item.carbs);
+            });
+
+            return {
+                id: meal.id,
+                totalCalories: meal.total_calories,
+                summary: meal.summary,
+                items: items.map(transformFood),
+                createdAt: meal.created_at
+            };
+        }));
+
+        res.json({
+            success: true,
+            totalCalories,
+            totalProtein,
+            totalFat,
+            totalCarbs,
+            meals: detailedMeals
+        });
+    } catch (error) {
+        console.error('Get Food By Id Error:', error);
+        res.status(500).json({ success: false, error: 'Internal Server Error' });
+    }
 });
 
 app.listen(port, '0.0.0.0', () => {

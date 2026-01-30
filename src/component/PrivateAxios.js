@@ -3,14 +3,14 @@ import * as SecureStore from "expo-secure-store";
 import { useNavigation } from "@react-navigation/native";
 
 // prod environment
-// const api = axios.create({
-//     baseURL: "https://geneus-solutions-backend.onrender.com",
-// });
+const api = axios.create({
+    baseURL: "https://geneus-solutions-backend.onrender.com",
+});
 
 // dev environment
-const api = axios.create({
-    baseURL: "http://192.168.0.100:8000",
-});
+//const api = axios.create({
+// baseURL: "http://192.168.0.101:8000",
+//});
 
 let navigator; // Variable to store the navigation object
 
@@ -67,8 +67,8 @@ api.interceptors.response.use(
                 console.log("Refresh Token:", refreshToken);
 
                 const response = await axios.post(
-                    //"https://geneus-solutions-backend.onrender.com/refresh_token_android",
-                    "http://192.168.0.100:8000/refresh_token_android",
+                    "https://geneus-solutions-backend.onrender.com/refresh_token_android",
+                    //"http://192.168.0.101:8000/refresh_token_android",
 
                     { refreshToken }
                 );

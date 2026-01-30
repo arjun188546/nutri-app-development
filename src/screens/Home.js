@@ -115,7 +115,7 @@ const Home = () => {
     });
 
     try {
-      const result = await analyzeFoodImage(pendingImage.base64 || "", mealName, pendingImage.uri);
+      const result = await analyzeFoodImage(pendingImage.base64 || "", mealName, pendingImage.uri, user?.id);
       if (result.success) {
         setMealHistory(prev => [result, ...prev]);
         Toast.hide();

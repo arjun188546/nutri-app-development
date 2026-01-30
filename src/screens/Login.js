@@ -90,9 +90,10 @@ const Login = ({ navigation }) => {
   const [login, { isLoading }] = useLoginMutation();
 
   const handleLogin = async () => {
+    console.log('Attempting login with:', { email, password });
     try {
       const response = await login({ email, password }).unwrap();
-      console.log('this is login response', response);
+      console.log('Login success response:', response);
       dispatch(setCredentials(response));
       await SecureStore.setItemAsync("accessToken", response.accessToken);
       await SecureStore.setItemAsync(
@@ -109,11 +110,11 @@ const Login = ({ navigation }) => {
       });
       navigation.navigate("Home");
     } catch (error) {
-      console.log("login error", error);
+      console.log("Detailed login error:", JSON.stringify(error, null, 2));
       Toast.show({
         type: "error",
         text1: "Error",
-        text2: "Failed to login. Please try again.",
+        text2: error?.data?.error || "Failed to login. Please try again.",
         visibilityTime: 3000,
         autoHide: true,
       });
